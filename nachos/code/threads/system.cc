@@ -18,15 +18,8 @@ Interrupt *interrupt;			// interrupt status
 Statistics *stats;			// performance metrics
 Timer *timer;				// the hardware timer device,
 					// for invoking context switches
-unsigned numPagesAllocated;              // number of physical frames allocated
-
-NachOSThread *threadArray[MAX_THREAD_COUNT];  // Array of thread pointers
-unsigned thread_index;                  // Index into this array (also used to assign unique pid)
-bool initializedConsoleSemaphores;
-bool exitThreadArray[MAX_THREAD_COUNT];  //Marks exited threads
-
-TimeSortedWaitQueue *sleepQueueHead;    // Needed to implement SC_Sleep
-
+List *SleepQueue;
+List *WaitQueue;
 #ifdef FILESYS_NEEDED
 FileSystem  *fileSystem;
 #endif
@@ -42,6 +35,8 @@ Machine *machine;	// user program memory and registers
 #ifdef NETWORK
 PostOffice *postOffice;
 #endif
+
+bool initializedConsoleSemaphores;
 
 // External definition, to allow us to take a pointer to this function
 extern void Cleanup();
@@ -67,18 +62,23 @@ extern void Cleanup();
 static void
 TimerInterruptHandler(int dummy)
 {
-    TimeSortedWaitQueue *ptr;
-    if (interrupt->getStatus() != IdleMode) {
-        // Check the head of the sleep queue
-        while ((sleepQueueHead != NULL) && (sleepQueueHead->GetWhen() <= (unsigned)stats->totalTicks)) {
-           sleepQueueHead->GetThread()->Schedule();
-           ptr = sleepQueueHead;
-           sleepQueueHead = sleepQueueHead->GetNext();
-           delete ptr;
-        }
-        //printf("[%d] Timer interrupt.\n", stats->totalTicks);
-        interrupt->YieldOnReturn();
+if (interrupt->getStatus() != IdleMode)
+	interrupt->YieldOnReturn();
+  
+  while (!SleepQueue->IsEmpty()) {
+    if(SleepQueue->First()->key > stats->totalTicks)
+    {   
+        break;
     }
+    else
+    {
+      NachOSThread *item = (NachOSThread*)SleepQueue->SortedRemove(NULL);
+      IntStatus prevStatus = interrupt->SetLevel(IntOff);
+      scheduler->ThreadIsReadyToRun(item);
+      interrupt->SetLevel(prevStatus);  
+    }
+  }
+
 }
 
 //----------------------------------------------------------------------
@@ -94,17 +94,11 @@ TimerInterruptHandler(int dummy)
 void
 Initialize(int argc, char **argv)
 {
-    int argCount, i;
+    int argCount;
     char* debugArgs = "";
     bool randomYield = FALSE;
 
     initializedConsoleSemaphores = false;
-    numPagesAllocated = 0;
-
-    for (i=0; i<MAX_THREAD_COUNT; i++) { threadArray[i] = NULL; exitThreadArray[i] = false; }
-    thread_index = 0;
-
-    sleepQueueHead = NULL;
 
 #ifdef USER_PROGRAM
     bool debugUserProg = FALSE;	// single step user program
@@ -187,6 +181,9 @@ Initialize(int argc, char **argv)
 #ifdef NETWORK
     postOffice = new PostOffice(netname, rely, 10);
 #endif
+
+SleepQueue = new List();
+WaitQueue = new List();
 }
 
 //----------------------------------------------------------------------
