@@ -82,6 +82,7 @@ static void ConvertIntToHex (unsigned v, Console *console)
 void
 ExceptionHandler(ExceptionType which)
 {
+
     int type = machine->ReadRegister(2);
     int memval, vaddr, printval, tempval, exp;
     unsigned printvalus;        // Used for printing in hex
@@ -98,13 +99,17 @@ ExceptionHandler(ExceptionType which)
     int whichChild;             // Used in SYScall_Join
     NachOSThread *child;              // Used by SYScall_Fork
     unsigned sleeptime;         // Used by SYScall_Sleep
+    
+    // printf("------- %d -- %d\n" , which, type);
 
     if ((which == SyscallException) && (type == SYScall_Halt)) {
-	DEBUG('a', "Shutdown, initiated by user program.\n");
+	 // printf("===============================Here :D \n");
+  DEBUG('a', "Shutdown, initiated by user program.\n");
    	interrupt->Halt();
     }
     else if ((which == SyscallException) && (type == SYScall_Exit)) {
        exitcode = machine->ReadRegister(4);
+       // printf("Here :D \n");
        printf("[pid %d]: Exit called. Code: %d\n", currentThread->GetPID(), exitcode);
        // We do not wait for the children to finish.
        // The children will continue to run.
@@ -168,7 +173,7 @@ ExceptionHandler(ExceptionType which)
        machine->WriteRegister(PCReg, machine->ReadRegister(NextPCReg));
        machine->WriteRegister(NextPCReg, machine->ReadRegister(NextPCReg)+4);
 
-       child = new NachOSThread("Forked thread");
+       child = new NachOSThread("Forked thread", currentThread->PriorityValue() );
        child->space = new ProcessAddrSpace (currentThread->space);  // Duplicates the address space
        child->SaveUserState ();                               // Duplicate the register set
        child->ResetReturnValue ();                           // Sets the return register to zero

@@ -166,7 +166,7 @@ Initialize(int argc, char **argv)
     // We didn't explicitly allocate the current thread we are running in.
     // But if it ever tries to give up the CPU, we better have a Thread
     // object to save its state. 
-    currentThread = new NachOSThread("main");		
+    currentThread = new NachOSThread("main",1);		
     currentThread->setStatus(RUNNING);
 
     interrupt->Enable();

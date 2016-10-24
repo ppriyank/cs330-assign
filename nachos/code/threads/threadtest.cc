@@ -43,7 +43,7 @@ ThreadTest()
 {
     DEBUG('t', "Entering SimpleTest");
 
-    NachOSThread *t = new NachOSThread("forked thread");
+    NachOSThread *t = new NachOSThread("forked thread",1);
 
     t->ThreadFork(SimpleThread, 1);
     SimpleThread(0);

@@ -32,7 +32,7 @@
 //	"threadName" is an arbitrary string, useful for debugging.
 //----------------------------------------------------------------------
 
-NachOSThread::NachOSThread(char* threadName)
+NachOSThread::NachOSThread(char* threadName, int priority)
 {
     int i;
 
@@ -54,7 +54,7 @@ NachOSThread::NachOSThread(char* threadName)
        currentThread->RegisterNewChild (pid);
     }
     else ppid = -1;
-
+    thread_priority = priority; 
     childcount = 0;
     waitchild_id = -1;
 
@@ -299,7 +299,8 @@ NachOSThread::YieldCPU ()
 //----------------------------------------------------------------------
 void
 NachOSThread::PutThreadToSleep ()
-{
+{ 
+
     NachOSThread *nextThread;
     
     ASSERT(this == currentThread);
@@ -308,9 +309,10 @@ NachOSThread::PutThreadToSleep ()
     DEBUG('t', "Sleeping thread \"%s\" with pid %d\n", getName(), pid);
 
     status = BLOCKED;
-    while ((nextThread = scheduler->FindNextThreadToRun()) == NULL)
-	interrupt->Idle();	// no one to run, wait for an interrupt
-        
+    while ((nextThread = scheduler->FindNextThreadToRun()) == NULL){
+	// printf(" PLZZZ NO!!!!\n");
+  interrupt->Idle();	// no one to run, wait for an interrupt
+}
     scheduler->Schedule(nextThread); // returns when we've been signalled
 }
 

@@ -83,7 +83,7 @@ class NachOSThread {
     int machineState[MachineStateSize];  // all registers except for stackTop
 
   public:
-    NachOSThread(char* debugName);		// initialize a Thread 
+    NachOSThread(char* debugName, int priority);		// initialize a Thread 
     ~NachOSThread(); 				// deallocate a Thread
 					// NOTE -- thread being deleted
 					// must not be running when delete 
@@ -113,7 +113,7 @@ class NachOSThread {
 
     inline int GetPID (void) { return pid; }
     inline int GetPPID (void) { return ppid; }
-
+        
     void SetChildExitCode (int childpid, int exitcode); // Called by an exiting child thread
 
     int CheckIfChild (int childpid);                    // Called by Join to verify that the caller
@@ -134,10 +134,12 @@ class NachOSThread {
 
     void IncInstructionCount();
     unsigned GetInstructionCount();
+    inline int PriorityValue (void) { return thread_priority; }
+
 
   private:
     // some of the private data for this class is listed above
-    
+    int thread_priority ;    
     int* stack; 	 		// Bottom of the stack 
 					// NULL if this is the main thread
 					// (If NULL, don't deallocate stack)

@@ -52,7 +52,9 @@
 
 #include "utility.h"
 #include "system.h"
-
+#include "machine.h"
+// #include "mipssim.h"
+// #include "system.h"
 
 // External functions used by this file
 
@@ -61,6 +63,9 @@ extern void Print(char *file), PerformanceTest(void);
 extern void StartUserProcess(char *file), ConsoleTest(char *in, char *out);
 extern void MailTest(int networkID);
 
+// static void ReadAvail(int arg) { readAvail->V(); }
+// static void WriteDone(int arg) { writeDone->V(); }
+// extern void RaiseException(ExceptionType which, int badVAddr) ;
 //----------------------------------------------------------------------
 // main
 // 	Bootstrap the operating system kernel.  
@@ -74,6 +79,15 @@ extern void MailTest(int networkID);
 //	"argv" is an array of strings, one for each command line argument
 //		ex: "nachos -d +" -> argv = {"nachos", "-d", "+"}
 //----------------------------------------------------------------------
+void
+TempStart (int dummy)
+{	
+	// printf("Bindgo!!!\n");
+   currentThread->Startup();
+   machine->Run();
+}
+
+
 
 int
 main(int argc, char **argv)
@@ -97,7 +111,81 @@ main(int argc, char **argv)
 	    ASSERT(argc > 1);
             StartUserProcess(*(argv + 1));
             argCount = 2;
-        } else if (!strcmp(*argv, "-c")) {      // test the console
+        }else if (!strcmp(*argv, "-F")){
+        	currentThread->SaveUserState();
+
+        	// =================================================================
+        	ASSERT(argc > 1);
+       		char* filename = *argv  ;
+        	FILE * fp;
+		    size_t len = 0;
+		    ssize_t read;
+		    char *line = NULL;
+		    fp = fopen(filename+3, "r");
+		    if (fp == NULL){
+		        printf("Unable to open file, calling halt\n");
+		        currentThread->FinishThread();
+		        return(0) ;// call halt here 
+		    }
+		    while ((read = getline(&(line), &len, fp)) != -1) {
+		        // printf("%s", line );
+		        char ch = line[0] ; 
+		        char file[20] ;
+		        int i =0 ;
+		        int j = 0 ; 
+		        int flag = 0 ;
+		        int priority = 0 ;
+		        while(ch!= '\0' && ch!= '\n') {
+		            if (ch != ' '){
+		                if (flag == 0 ){
+		                    file[j]= ch ; 
+		                    j = j + 1;
+		                }
+		                else {  
+		                    priority = priority*10 + ch - '0' ;
+		                    file[j]= '\0' ;
+		                     }
+		             }
+		            else { 
+		                file[j]= '\0' ;
+		                flag = 1 ;
+		            }     
+		            i = i +1 ; 
+		            ch = line[i] ;
+		        }
+		        file[j]= '\0' ;
+		        if (priority == 0 ) priority = 100 ;
+		        printf("%s == %d\n", file,   priority);		       
+		        OpenFile *executable = fileSystem->Open(file);
+		        ProcessAddrSpace *space;
+		        if (executable == NULL) {
+			        printf("Unable to open executable calling halt%s\n", filename);
+			        currentThread->FinishThread();
+			        return(0) ;// call halt here 
+		        }
+		currentThread->SaveUserState();
+		        
+    	NachOSThread *child;              // Used by SYScall_Fork
+	   child = new NachOSThread("Forked thread", priority );
+       child->space = new ProcessAddrSpace (executable);  // Duplicates the address space
+       child->AllocateThreadStack (TempStart, 0);     // Make it ready for a later context switch  
+       child->space->InitUserCPURegisters();		// set the initial register values
+       child->space->RestoreStateOnSwitch();		// load page table register
+       child->SaveUserState ();                               // Duplicate the register set
+       child->ResetReturnValue ();                           // Sets the return register to zero
+       child->setStatus(READY);
+       child->Schedule ();
+       delete executable;			// close file
+       currentThread->RestoreUserState() ;
+		        }
+		        // printf("Here :D :D  \n");
+    		    fclose(fp);
+    			scheduler->Schedule(currentThread);
+    		    machine->WriteRegister(2, 1);
+    		    machine->RaiseException(SyscallException, 0);
+    		    ASSERT(FALSE);
+    }
+        else if (!strcmp(*argv, "-c")) {      // test the console
 	    if (argc == 1)
 	        ConsoleTest(NULL, NULL);
 	    else {
